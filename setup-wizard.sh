@@ -117,6 +117,29 @@ if [ "$PROVIDER" = "anthropic" ]; then
     esac
     echo -e "${GREEN}✓ Model: $MODEL${NC}"
     echo ""
+
+    # Heartbeat model selection
+    echo "Use a different model for heartbeat? (saves resources)"
+    echo ""
+    echo "  1) Same as above  (${MODEL})"
+    echo "  2) Haiku   (cheapest, fast)"
+    echo "  3) Sonnet"
+    echo "  4) Opus"
+    echo ""
+    read -rp "Choose [1-4, default: 1]: " HB_MODEL_CHOICE
+
+    case "$HB_MODEL_CHOICE" in
+        2) HEARTBEAT_MODEL="haiku" ;;
+        3) HEARTBEAT_MODEL="sonnet" ;;
+        4) HEARTBEAT_MODEL="opus" ;;
+        *) HEARTBEAT_MODEL="" ;;
+    esac
+    if [ -n "$HEARTBEAT_MODEL" ]; then
+        echo -e "${GREEN}✓ Heartbeat model: $HEARTBEAT_MODEL${NC}"
+    else
+        echo -e "${GREEN}✓ Heartbeat model: same as default ($MODEL)${NC}"
+    fi
+    echo ""
 else
     # OpenAI models
     echo "Which OpenAI model?"
@@ -166,6 +189,13 @@ CHANNELS_JSON="${CHANNELS_JSON}]"
 DISCORD_TOKEN="${TOKENS[discord]:-}"
 TELEGRAM_TOKEN="${TOKENS[telegram]:-}"
 
+# Build heartbeat_model line if set
+if [ -n "${HEARTBEAT_MODEL:-}" ]; then
+    HB_MODEL_LINE=",\n      \"heartbeat_model\": \"${HEARTBEAT_MODEL}\""
+else
+    HB_MODEL_LINE=""
+fi
+
 # Write settings.json with layered structure
 if [ "$PROVIDER" = "anthropic" ]; then
 cat > "$SETTINGS_FILE" <<EOF
@@ -183,7 +213,7 @@ cat > "$SETTINGS_FILE" <<EOF
   "models": {
     "provider": "anthropic",
     "anthropic": {
-      "model": "${MODEL}"
+      "model": "${MODEL}"$(echo -e "${HB_MODEL_LINE}")
     }
   },
   "monitoring": {

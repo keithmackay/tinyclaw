@@ -18,8 +18,10 @@ const SETTINGS_FILE = path.join(SCRIPT_DIR, '.tinyclaw/settings.json');
 
 // Model name mapping
 const CLAUDE_MODEL_IDS: Record<string, string> = {
+    'haiku': 'claude-haiku-4-5',
     'sonnet': 'claude-sonnet-4-5',
     'opus': 'claude-opus-4-6',
+    'claude-haiku-4-5': 'claude-haiku-4-5',
     'claude-sonnet-4-5': 'claude-sonnet-4-5',
     'claude-opus-4-6': 'claude-opus-4-6'
 };
@@ -40,9 +42,11 @@ interface Settings {
         provider?: string; // 'anthropic' or 'openai'
         anthropic?: {
             model?: string;
+            heartbeat_model?: string;
         };
         openai?: {
             model?: string;
+            heartbeat_model?: string;
         };
     };
     monitoring?: {
@@ -72,10 +76,13 @@ function getSettings(): Settings {
     }
 }
 
-function getModelFlag(): string {
+function getModelFlag(channel: string): string {
     try {
         const settings = getSettings();
-        const model = settings?.models?.anthropic?.model;
+        const anthropic = settings?.models?.anthropic;
+        const model = (channel === 'heartbeat' && anthropic?.heartbeat_model)
+            ? anthropic.heartbeat_model
+            : anthropic?.model;
         if (model) {
             const modelId = CLAUDE_MODEL_IDS[model];
             if (modelId) {
@@ -86,10 +93,13 @@ function getModelFlag(): string {
     return '';
 }
 
-function getCodexModelFlag(): string {
+function getCodexModelFlag(channel: string): string {
     try {
         const settings = getSettings();
-        const model = settings?.models?.openai?.model;
+        const openai = settings?.models?.openai;
+        const model = (channel === 'heartbeat' && openai?.heartbeat_model)
+            ? openai.heartbeat_model
+            : openai?.model;
         if (model) {
             const modelId = CODEX_MODEL_IDS[model] || model;
             return modelId;
@@ -202,7 +212,7 @@ async function processMessage(messageFile: string): Promise<void> {
                     fs.unlinkSync(RESET_FLAG);
                 }
 
-                const modelId = getCodexModelFlag();
+                const modelId = getCodexModelFlag(channel);
                 const codexArgs = ['exec'];
                 if (shouldResume) {
                     codexArgs.push('resume', '--last');
@@ -244,7 +254,7 @@ async function processMessage(messageFile: string): Promise<void> {
                     fs.unlinkSync(RESET_FLAG);
                 }
 
-                const modelId = getModelFlag();
+                const modelId = getModelFlag(channel);
                 const claudeArgs = ['--dangerously-skip-permissions'];
                 if (modelId) {
                     claudeArgs.push('--model', modelId);
